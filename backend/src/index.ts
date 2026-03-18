@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 
 import { setupTables } from "./db";
 import invoiceRoute from "./routes/invoice";
+import reportRoute from "./routes/report";
 
 const app = new Hono();
 
@@ -15,6 +16,7 @@ app.get("/health", async (c) => {
 });
 
 app.route("/api/invoice", invoiceRoute);
+app.route("/api/report", reportRoute);
 
 // Setup DB tables then start server
 await setupTables();

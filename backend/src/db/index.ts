@@ -5,10 +5,6 @@ if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set')
 export const db = new SQL(process.env.DATABASE_URL)
 
 export async function setupTables(): Promise<void> {
-  // Drop and recreate for POC — ensures schema is always in sync
-  await db`DROP TABLE IF EXISTS service_items`
-  await db`DROP TABLE IF EXISTS bill_summary`
-
   await db`
     CREATE TABLE IF NOT EXISTS bill_summary (
       bill_no          TEXT PRIMARY KEY,

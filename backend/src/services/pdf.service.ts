@@ -1,6 +1,10 @@
 import PDFDocument from "pdfkit";
 
-import type { ServiceCategory, ServiceItem, BillSummary } from "../types/invoice";
+import type {
+	BillSummary,
+	ServiceCategory,
+	ServiceItem,
+} from "../types/invoice";
 import { getServiceCategory } from "../types/invoice";
 
 // ─── Layout Constants ────────────────────────────────────────────────────────
@@ -35,9 +39,16 @@ function fmt(n: number): string {
 }
 
 // ─── Category grouping ───────────────────────────────────────────────────────
-const CATEGORY_ORDER: ServiceCategory[] = ["Consultation", "Pharmacy", "Investigation", "Others"];
+const CATEGORY_ORDER: ServiceCategory[] = [
+	"Consultation",
+	"Pharmacy",
+	"Investigation",
+	"Others",
+];
 
-function groupByCategory(items: ServiceItem[]): Map<ServiceCategory, ServiceItem[]> {
+function groupByCategory(
+	items: ServiceItem[],
+): Map<ServiceCategory, ServiceItem[]> {
 	const groups = new Map<ServiceCategory, ServiceItem[]>();
 	for (const cat of CATEGORY_ORDER) groups.set(cat, []);
 	for (const item of items) {
@@ -51,40 +62,86 @@ function groupByCategory(items: ServiceItem[]): Map<ServiceCategory, ServiceItem
 }
 
 // ─── Drawing helpers ─────────────────────────────────────────────────────────
-function drawTableHeader(doc: InstanceType<typeof PDFDocument>, y: number): number {
+function drawTableHeader(
+	doc: InstanceType<typeof PDFDocument>,
+	y: number,
+): number {
 	doc.rect(MARGIN, y, CONTENT_W, ROW_H).fill(rgbStr(C_HDR_BG));
 	const ty = y + 5;
 	doc.fontSize(7.5).font("Helvetica-Bold").fillColor("black");
 	doc.text("Date", COL_X.date + 4, ty, { width: COLS.date - 8 });
 	doc.text("Particulars", COL_X.service + 4, ty, { width: COLS.service - 8 });
-	doc.text("HSN/SAC", COL_X.hsn + 4, ty, { width: COLS.hsn - 8, align: "center" });
-	doc.text("Unit Price", COL_X.unit + 4, ty, { width: COLS.unit - 8, align: "right" });
+	doc.text("HSN/SAC", COL_X.hsn + 4, ty, {
+		width: COLS.hsn - 8,
+		align: "center",
+	});
+	doc.text("Unit Price", COL_X.unit + 4, ty, {
+		width: COLS.unit - 8,
+		align: "right",
+	});
 	doc.text("Qty", COL_X.qty + 4, ty, { width: COLS.qty - 8, align: "center" });
-	doc.text("Amount", COL_X.amount + 4, ty, { width: COLS.amount - 8, align: "right" });
-	doc.moveTo(MARGIN, y + ROW_H).lineTo(PAGE_W - MARGIN, y + ROW_H).lineWidth(0.5).strokeColor("#999").stroke();
+	doc.text("Amount", COL_X.amount + 4, ty, {
+		width: COLS.amount - 8,
+		align: "right",
+	});
+	doc
+		.moveTo(MARGIN, y + ROW_H)
+		.lineTo(PAGE_W - MARGIN, y + ROW_H)
+		.lineWidth(0.5)
+		.strokeColor("#999")
+		.stroke();
 	return y + ROW_H;
 }
 
-function measureRowHeight(doc: InstanceType<typeof PDFDocument>, serviceName: string): number {
-	const textH = doc.font("Helvetica").fontSize(7.5).heightOfString(serviceName, { width: COLS.service - 10 });
+function measureRowHeight(
+	doc: InstanceType<typeof PDFDocument>,
+	serviceName: string,
+): number {
+	const textH = doc
+		.font("Helvetica")
+		.fontSize(7.5)
+		.heightOfString(serviceName, { width: COLS.service - 10 });
 	return Math.max(ROW_H, textH + 8);
 }
 
-function drawDataRow(doc: InstanceType<typeof PDFDocument>, y: number, item: ServiceItem): number {
+function drawDataRow(
+	doc: InstanceType<typeof PDFDocument>,
+	y: number,
+	item: ServiceItem,
+): number {
 	const dynH = measureRowHeight(doc, item.serviceName);
 	const ty = y + 4;
 
 	doc.fontSize(7.5).font("Helvetica").fillColor("black");
 	doc.text(item.orderDate, COL_X.date + 4, ty, { width: COLS.date - 8 });
-	doc.text(item.serviceName, COL_X.service + 4, ty, { width: COLS.service - 10 });
-	doc.text(item.serviceCode, COL_X.hsn + 4, ty, { width: COLS.hsn - 8, align: "center" });
-	doc.text(fmt(item.serviceUnitPrice), COL_X.unit + 4, ty, { width: COLS.unit - 8, align: "right" });
-	const qtyStr = item.serviceQty % 1 === 0 ? String(Math.round(item.serviceQty)) : String(item.serviceQty);
+	doc.text(item.serviceName, COL_X.service + 4, ty, {
+		width: COLS.service - 10,
+	});
+	doc.text(item.serviceCode, COL_X.hsn + 4, ty, {
+		width: COLS.hsn - 8,
+		align: "center",
+	});
+	doc.text(fmt(item.serviceUnitPrice), COL_X.unit + 4, ty, {
+		width: COLS.unit - 8,
+		align: "right",
+	});
+	const qtyStr =
+		item.serviceQty % 1 === 0
+			? String(Math.round(item.serviceQty))
+			: String(item.serviceQty);
 	doc.text(qtyStr, COL_X.qty + 4, ty, { width: COLS.qty - 8, align: "center" });
-	doc.text(fmt(item.serviceAmount), COL_X.amount + 4, ty, { width: COLS.amount - 8, align: "right" });
+	doc.text(fmt(item.serviceAmount), COL_X.amount + 4, ty, {
+		width: COLS.amount - 8,
+		align: "right",
+	});
 
 	// light separator line
-	doc.moveTo(MARGIN, y + dynH).lineTo(PAGE_W - MARGIN, y + dynH).lineWidth(0.2).strokeColor("#ccc").stroke();
+	doc
+		.moveTo(MARGIN, y + dynH)
+		.lineTo(PAGE_W - MARGIN, y + dynH)
+		.lineWidth(0.2)
+		.strokeColor("#ccc")
+		.stroke();
 
 	return dynH;
 }
@@ -101,12 +158,18 @@ export async function generateInvoicePdf(
 	const t0 = Date.now();
 
 	return new Promise((resolve, reject) => {
-		const doc = new PDFDocument({ size: "A4", margin: MARGIN, bufferPages: true });
+		const doc = new PDFDocument({
+			size: "A4",
+			margin: MARGIN,
+			bufferPages: true,
+		});
 		const chunks: Buffer[] = [];
 		doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 		doc.on("end", () => {
 			const buf = Buffer.concat(chunks);
-			console.log(`[pdf] saved in ${Date.now() - t0}ms, ${buf.byteLength} bytes`);
+			console.log(
+				`[pdf] saved in ${Date.now() - t0}ms, ${buf.byteLength} bytes`,
+			);
 			resolve(new Uint8Array(buf));
 		});
 		doc.on("error", reject);
@@ -118,29 +181,56 @@ export async function generateInvoicePdf(
 				doc.addPage();
 				y = MARGIN;
 				// Continuation header
-				doc.fontSize(11).font("Helvetica-Bold").fillColor(rgbStr(C_PRIMARY))
+				doc
+					.fontSize(11)
+					.font("Helvetica-Bold")
+					.fillColor(rgbStr(C_PRIMARY))
 					.text("GC GERI CARE", MARGIN, y);
-				doc.fontSize(8).font("Helvetica").fillColor(rgbStr(C_DGRAY))
-					.text(`Invoice # ${bill.billNo} (continued)`, MARGIN, y, { width: CONTENT_W, align: "right" });
+				doc
+					.fontSize(8)
+					.font("Helvetica")
+					.fillColor(rgbStr(C_DGRAY))
+					.text(`Invoice # ${bill.billNo} (continued)`, MARGIN, y, {
+						width: CONTENT_W,
+						align: "right",
+					});
 				y += 20;
 			}
 		}
 
 		// ── HEADER ──────────────────────────────────────────────────────────
-		doc.fontSize(18).font("Helvetica-Bold").fillColor(rgbStr(C_PRIMARY))
+		doc
+			.fontSize(18)
+			.font("Helvetica-Bold")
+			.fillColor(rgbStr(C_PRIMARY))
 			.text("GC GERI CARE", MARGIN, y);
 		// Invoice # right-aligned
-		doc.fontSize(9).font("Helvetica").fillColor(rgbStr(C_DGRAY))
+		doc
+			.fontSize(9)
+			.font("Helvetica")
+			.fillColor(rgbStr(C_DGRAY))
 			.text("Invoice #", MARGIN, y, { width: CONTENT_W, align: "right" });
 		y += 20;
-		doc.fontSize(7).font("Helvetica").fillColor(rgbStr(C_GRAY))
+		doc
+			.fontSize(7)
+			.font("Helvetica")
+			.fillColor(rgbStr(C_GRAY))
 			.text("ELDERCARE BY GERIATRICIANS", MARGIN, y);
-		doc.fontSize(14).font("Helvetica-Bold").fillColor(rgbStr(C_PRIMARY))
+		doc
+			.fontSize(14)
+			.font("Helvetica-Bold")
+			.fillColor(rgbStr(C_PRIMARY))
 			.text(bill.billNo, MARGIN, y - 2, { width: CONTENT_W, align: "right" });
 		y += 12;
-		doc.fontSize(8).font("Helvetica").fillColor(rgbStr(C_DGRAY))
+		doc
+			.fontSize(8)
+			.font("Helvetica")
+			.fillColor(rgbStr(C_DGRAY))
 			.text("Guindy Chennai, Velachery", MARGIN, y);
-		doc.fontSize(7).font("Helvetica").fillColor(rgbStr(C_GRAY))
+		doc
+			.fontSize(7)
+			.font("Helvetica")
+			.fillColor(rgbStr(C_GRAY))
 			.text("Bill in supply", MARGIN, y, { width: CONTENT_W, align: "right" });
 		y += 11;
 		doc.text("City name, TEST - 123414", MARGIN, y);
@@ -149,7 +239,12 @@ export async function generateInvoicePdf(
 		y += 14;
 
 		// Divider
-		doc.moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).lineWidth(0.5).strokeColor("#999").stroke();
+		doc
+			.moveTo(MARGIN, y)
+			.lineTo(PAGE_W - MARGIN, y)
+			.lineWidth(0.5)
+			.strokeColor("#999")
+			.stroke();
 		y += 8;
 
 		// ── UHID / ENCOUNTER ────────────────────────────────────────────────
@@ -157,7 +252,12 @@ export async function generateInvoicePdf(
 		doc.text(`UHID: ${bill.uhid}`, MARGIN, y, { continued: false });
 		doc.text(`Encounter No: ${bill.encounterNo}`, MARGIN + 180, y);
 		y += 14;
-		doc.moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).lineWidth(0.5).strokeColor("#999").stroke();
+		doc
+			.moveTo(MARGIN, y)
+			.lineTo(PAGE_W - MARGIN, y)
+			.lineWidth(0.5)
+			.strokeColor("#999")
+			.stroke();
 		y += 10;
 
 		// ── BILL TO + PATIENT DETAILS ────────────────────────────────────────
@@ -169,7 +269,10 @@ export async function generateInvoicePdf(
 		y += 14;
 		doc.fontSize(9).font("Helvetica").text(bill.patientName, MARGIN, y);
 		y += 12;
-		doc.fontSize(8).fillColor(rgbStr(C_GRAY)).text(bill.payType ? `, - ${bill.payType}` : ", - None", MARGIN, y);
+		doc
+			.fontSize(8)
+			.fillColor(rgbStr(C_GRAY))
+			.text(bill.payType ? `, - ${bill.payType}` : ", - None", MARGIN, y);
 
 		// Right side details
 		const details: [string, string][] = [
@@ -182,18 +285,29 @@ export async function generateInvoicePdf(
 		];
 		let detailY = infoY;
 		for (const [label, value] of details) {
-			doc.fontSize(8).font("Helvetica-Bold").fillColor("black").text(label, rightX, detailY, { width: 85 });
+			doc
+				.fontSize(8)
+				.font("Helvetica-Bold")
+				.fillColor("black")
+				.text(label, rightX, detailY, { width: 85 });
 			doc.font("Helvetica").text(value, rightX + 85, detailY, { width: 150 });
 			detailY += 13;
 		}
 
 		y = Math.max(y + 14, detailY + 4);
-		doc.moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).lineWidth(0.5).strokeColor("#999").stroke();
+		doc
+			.moveTo(MARGIN, y)
+			.lineTo(PAGE_W - MARGIN, y)
+			.lineWidth(0.5)
+			.strokeColor("#999")
+			.stroke();
 		y += 14;
 
 		// ── CATEGORY-WISE TABLES ─────────────────────────────────────────────
 		const categoryGroups = groupByCategory(items);
-		console.log(`[pdf] categories: ${[...categoryGroups.entries()].map(([c, i]) => `${c}=${i.length}`).join(", ")}`);
+		console.log(
+			`[pdf] categories: ${[...categoryGroups.entries()].map(([c, i]) => `${c}=${i.length}`).join(", ")}`,
+		);
 
 		for (const [category, catItems] of categoryGroups) {
 			ensureSpace(ROW_H * 3 + 30);
@@ -201,11 +315,24 @@ export async function generateInvoicePdf(
 			// Category title bar
 			const catH = 20;
 			doc.rect(MARGIN, y, CONTENT_W, catH).fill(rgbStr(C_CAT_BG));
-			doc.rect(MARGIN, y, CONTENT_W, catH).lineWidth(0.5).strokeColor("#bbb").stroke();
-			doc.fontSize(9).font("Helvetica-Bold").fillColor(rgbStr(C_PRIMARY))
+			doc
+				.rect(MARGIN, y, CONTENT_W, catH)
+				.lineWidth(0.5)
+				.strokeColor("#bbb")
+				.stroke();
+			doc
+				.fontSize(9)
+				.font("Helvetica-Bold")
+				.fillColor(rgbStr(C_PRIMARY))
 				.text(category.toUpperCase(), MARGIN + 8, y + 5);
-			doc.fontSize(7).font("Helvetica").fillColor(rgbStr(C_GRAY))
-				.text(`${catItems.length} items`, MARGIN, y + 6, { width: CONTENT_W - 8, align: "right" });
+			doc
+				.fontSize(7)
+				.font("Helvetica")
+				.fillColor(rgbStr(C_GRAY))
+				.text(`${catItems.length} items`, MARGIN, y + 6, {
+					width: CONTENT_W - 8,
+					align: "right",
+				});
 			y += catH + 2;
 
 			// Table header
@@ -220,7 +347,10 @@ export async function generateInvoicePdf(
 				if (y + rowH > PAGE_H - BOTTOM_MARGIN) {
 					doc.addPage();
 					y = MARGIN;
-					doc.fontSize(9).font("Helvetica-Bold").fillColor(rgbStr(C_PRIMARY))
+					doc
+						.fontSize(9)
+						.font("Helvetica-Bold")
+						.fillColor(rgbStr(C_PRIMARY))
 						.text(`${category.toUpperCase()} (continued)`, MARGIN, y);
 					y += 14;
 					y = drawTableHeader(doc, y);
@@ -235,12 +365,25 @@ export async function generateInvoicePdf(
 				doc.addPage();
 				y = MARGIN;
 			}
-			const catTotal = catItems.reduce((sum, item) => sum + item.serviceAmount, 0);
+			const catTotal = catItems.reduce(
+				(sum, item) => sum + item.serviceAmount,
+				0,
+			);
 			doc.rect(MARGIN, y, CONTENT_W, ROW_H).fill(rgbStr(C_SUB_BG));
-			doc.rect(MARGIN, y, CONTENT_W, ROW_H).lineWidth(0.5).strokeColor("#bbb").stroke();
-			doc.fontSize(8.5).font("Helvetica-Bold").fillColor("black")
+			doc
+				.rect(MARGIN, y, CONTENT_W, ROW_H)
+				.lineWidth(0.5)
+				.strokeColor("#bbb")
+				.stroke();
+			doc
+				.fontSize(8.5)
+				.font("Helvetica-Bold")
+				.fillColor("black")
 				.text(`${category} Total`, MARGIN + 8, y + 4);
-			doc.text(fmt(catTotal), COL_X.amount + 4, y + 4, { width: COLS.amount - 8, align: "right" });
+			doc.text(fmt(catTotal), COL_X.amount + 4, y + 4, {
+				width: COLS.amount - 8,
+				align: "right",
+			});
 			y += ROW_H + 10;
 		}
 
@@ -248,47 +391,106 @@ export async function generateInvoicePdf(
 		ensureSpace(100);
 
 		doc.rect(MARGIN, y, CONTENT_W, 24).fill(rgbStr(C_PRIMARY));
-		doc.fontSize(11).font("Helvetica-Bold").fillColor("white")
-			.text(`Grand Total: Rs. ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1 }).format(bill.totalNetAmount)}`, MARGIN + 8, y + 6);
+		doc
+			.fontSize(11)
+			.font("Helvetica-Bold")
+			.fillColor("white")
+			.text(
+				`Grand Total: Rs. ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1 }).format(bill.totalNetAmount)}`,
+				MARGIN + 8,
+				y + 6,
+			);
 		y += 38;
 
 		// Amount in words
-		doc.fontSize(9).font("Helvetica-Bold").fillColor("black")
-			.text(`Amount in Words: ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2 }).format(bill.totalNetAmount)} rupees only.`, MARGIN, y, { width: CONTENT_W });
+		doc
+			.fontSize(9)
+			.font("Helvetica-Bold")
+			.fillColor("black")
+			.text(
+				`Amount in Words: ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2 }).format(bill.totalNetAmount)} rupees only.`,
+				MARGIN,
+				y,
+				{ width: CONTENT_W },
+			);
 		y += 20;
 
 		// Amount Due box
-		doc.rect(MARGIN, y, CONTENT_W, 22).lineWidth(0.8).strokeColor("#999").stroke();
-		doc.moveTo(MARGIN + CONTENT_W / 2, y).lineTo(MARGIN + CONTENT_W / 2, y + 22).stroke();
-		doc.fontSize(10).font("Helvetica-Bold").fillColor("black")
+		doc
+			.rect(MARGIN, y, CONTENT_W, 22)
+			.lineWidth(0.8)
+			.strokeColor("#999")
+			.stroke();
+		doc
+			.moveTo(MARGIN + CONTENT_W / 2, y)
+			.lineTo(MARGIN + CONTENT_W / 2, y + 22)
+			.stroke();
+		doc
+			.fontSize(10)
+			.font("Helvetica-Bold")
+			.fillColor("black")
 			.text("Amount Due", MARGIN + 8, y + 6);
-		doc.text(`Rs. ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1 }).format(bill.totalNetAmount)}`, MARGIN, y + 6, { width: CONTENT_W - 8, align: "right" });
+		doc.text(
+			`Rs. ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1 }).format(bill.totalNetAmount)}`,
+			MARGIN,
+			y + 6,
+			{ width: CONTENT_W - 8, align: "right" },
+		);
 		y += 40;
 
 		// ── THANK YOU ─────────────────────────────────────────────────────────
 		ensureSpace(70);
-		doc.fontSize(11).font("Helvetica-Bold").fillColor("black")
+		doc
+			.fontSize(11)
+			.font("Helvetica-Bold")
+			.fillColor("black")
 			.text("Thank You", MARGIN, y, { width: CONTENT_W, align: "center" });
 		y += 16;
-		doc.fontSize(12).fillColor(rgbStr(C_PRIMARY))
+		doc
+			.fontSize(12)
+			.fillColor(rgbStr(C_PRIMARY))
 			.text("GC GERI CARE", MARGIN, y, { width: CONTENT_W, align: "center" });
 		y += 14;
-		doc.fontSize(7).font("Helvetica").fillColor(rgbStr(C_GRAY))
-			.text("ELDERCARE BY GERIATRICIANS", MARGIN, y, { width: CONTENT_W, align: "center" });
+		doc
+			.fontSize(7)
+			.font("Helvetica")
+			.fillColor(rgbStr(C_GRAY))
+			.text("ELDERCARE BY GERIATRICIANS", MARGIN, y, {
+				width: CONTENT_W,
+				align: "center",
+			});
 		y += 10;
-		doc.fontSize(8).fillColor(rgbStr(C_DGRAY))
-			.text("Guindy Chennai, Velachery", MARGIN, y, { width: CONTENT_W, align: "center" });
+		doc
+			.fontSize(8)
+			.fillColor(rgbStr(C_DGRAY))
+			.text("Guindy Chennai, Velachery", MARGIN, y, {
+				width: CONTENT_W,
+				align: "center",
+			});
 		y += 10;
-		doc.text("City name, TEST - 123414", MARGIN, y, { width: CONTENT_W, align: "center" });
+		doc.text("City name, TEST - 123414", MARGIN, y, {
+			width: CONTENT_W,
+			align: "center",
+		});
 		y += 10;
-		doc.text("Ph: 9876543210", MARGIN, y, { width: CONTENT_W, align: "center" });
+		doc.text("Ph: 9876543210", MARGIN, y, {
+			width: CONTENT_W,
+			align: "center",
+		});
 
 		// ── PAGE NUMBERS ─────────────────────────────────────────────────────
-		const totalPages = doc.bufferedPageRange().count;
-		for (let i = 0; i < totalPages; i++) {
-			doc.switchToPage(i);
-			doc.fontSize(7).font("Helvetica").fillColor(rgbStr(C_GRAY))
-				.text(`Page ${i + 1} of ${totalPages}`, MARGIN, PAGE_H - 30, { width: CONTENT_W, align: "center" });
+		const range = doc.bufferedPageRange();
+		for (let i = 0; i < range.count; i++) {
+			doc.switchToPage(range.start + i);
+			doc
+				.fontSize(7)
+				.font("Helvetica")
+				.fillColor(rgbStr(C_GRAY))
+				.text(`Page ${i + 1} of ${range.count}`, MARGIN, PAGE_H - 30, {
+					width: CONTENT_W,
+					align: "center",
+					lineBreak: false,
+				});
 		}
 
 		doc.end();
