@@ -1,3 +1,4 @@
+import path from "node:path";
 import PDFDocument from "pdfkit";
 
 import type {
@@ -6,6 +7,11 @@ import type {
 	ServiceItem,
 } from "../types/invoice";
 import { getServiceCategory } from "../types/invoice";
+
+// ─── Font Paths (Noto Sans supports ₹ symbol) ──────────────────────────────
+const FONT_DIR = path.join(import.meta.dir, "..", "fonts");
+const FONT_REGULAR = path.join(FONT_DIR, "NotoSans-Regular.ttf");
+const FONT_BOLD = path.join(FONT_DIR, "NotoSans-Bold.ttf");
 
 // ─── Layout Constants ────────────────────────────────────────────────────────
 const PAGE_W = 595;
@@ -27,15 +33,15 @@ const COL_X = {
 };
 
 // Colors
-const C_PRIMARY: [number, number, number] = [20, 92, 143];
+const C_PRIMARY: [number, number, number] = [126, 27, 72]; // lab(28.521% 44.9839 -1.84727) → maroon/burgundy
 const C_GRAY: [number, number, number] = [115, 115, 115];
 const C_DGRAY: [number, number, number] = [64, 64, 64];
 const C_HDR_BG: [number, number, number] = [224, 224, 224];
-const C_CAT_BG: [number, number, number] = [235, 242, 250];
+const C_CAT_BG: [number, number, number] = [250, 235, 242]; // light maroon tint to match primary
 const C_SUB_BG: [number, number, number] = [240, 240, 240];
 
 function fmt(n: number): string {
-	return `Rs. ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(n)}`;
+	return `₹ ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(n)}`;
 }
 
 // ─── Category grouping ───────────────────────────────────────────────────────
@@ -53,7 +59,7 @@ function groupByCategory(
 	for (const cat of CATEGORY_ORDER) groups.set(cat, []);
 	for (const item of items) {
 		const cat = getServiceCategory(item.serviceGroupName);
-		groups.get(cat)!.push(item);
+		groups.get(cat)?.push(item);
 	}
 	for (const [cat, catItems] of groups) {
 		if (catItems.length === 0) groups.delete(cat);
@@ -68,7 +74,7 @@ function drawTableHeader(
 ): number {
 	doc.rect(MARGIN, y, CONTENT_W, ROW_H).fill(rgbStr(C_HDR_BG));
 	const ty = y + 5;
-	doc.fontSize(7.5).font("Helvetica-Bold").fillColor("black");
+	doc.fontSize(7.5).font("Noto-Bold").fillColor("black");
 	doc.text("Date", COL_X.date + 4, ty, { width: COLS.date - 8 });
 	doc.text("Particulars", COL_X.service + 4, ty, { width: COLS.service - 8 });
 	doc.text("HSN/SAC", COL_X.hsn + 4, ty, {
@@ -98,7 +104,7 @@ function measureRowHeight(
 	serviceName: string,
 ): number {
 	const textH = doc
-		.font("Helvetica")
+		.font("Noto")
 		.fontSize(7.5)
 		.heightOfString(serviceName, { width: COLS.service - 10 });
 	return Math.max(ROW_H, textH + 8);
@@ -112,7 +118,7 @@ function drawDataRow(
 	const dynH = measureRowHeight(doc, item.serviceName);
 	const ty = y + 4;
 
-	doc.fontSize(7.5).font("Helvetica").fillColor("black");
+	doc.fontSize(7.5).font("Noto").fillColor("black");
 	doc.text(item.orderDate, COL_X.date + 4, ty, { width: COLS.date - 8 });
 	doc.text(item.serviceName, COL_X.service + 4, ty, {
 		width: COLS.service - 10,
@@ -163,6 +169,10 @@ export async function generateInvoicePdf(
 			margin: MARGIN,
 			bufferPages: true,
 		});
+
+		// Register Noto Sans fonts (supports ₹ symbol)
+		doc.registerFont("Noto", FONT_REGULAR);
+		doc.registerFont("Noto-Bold", FONT_BOLD);
 		const chunks: Buffer[] = [];
 		doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 		doc.on("end", () => {
@@ -183,12 +193,12 @@ export async function generateInvoicePdf(
 				// Continuation header
 				doc
 					.fontSize(11)
-					.font("Helvetica-Bold")
+					.font("Noto-Bold")
 					.fillColor(rgbStr(C_PRIMARY))
 					.text("GC GERI CARE", MARGIN, y);
 				doc
 					.fontSize(8)
-					.font("Helvetica")
+					.font("Noto")
 					.fillColor(rgbStr(C_DGRAY))
 					.text(`Invoice # ${bill.billNo} (continued)`, MARGIN, y, {
 						width: CONTENT_W,
@@ -201,35 +211,35 @@ export async function generateInvoicePdf(
 		// ── HEADER ──────────────────────────────────────────────────────────
 		doc
 			.fontSize(18)
-			.font("Helvetica-Bold")
+			.font("Noto-Bold")
 			.fillColor(rgbStr(C_PRIMARY))
-			.text("GC GERI CARE", MARGIN, y);
+			.text("GERI CARE", MARGIN, y);
 		// Invoice # right-aligned
 		doc
 			.fontSize(9)
-			.font("Helvetica")
+			.font("Noto")
 			.fillColor(rgbStr(C_DGRAY))
 			.text("Invoice #", MARGIN, y, { width: CONTENT_W, align: "right" });
 		y += 20;
 		doc
 			.fontSize(7)
-			.font("Helvetica")
+			.font("Noto")
 			.fillColor(rgbStr(C_GRAY))
 			.text("ELDERCARE BY GERIATRICIANS", MARGIN, y);
 		doc
 			.fontSize(14)
-			.font("Helvetica-Bold")
+			.font("Noto-Bold")
 			.fillColor(rgbStr(C_PRIMARY))
 			.text(bill.billNo, MARGIN, y - 2, { width: CONTENT_W, align: "right" });
 		y += 12;
 		doc
 			.fontSize(8)
-			.font("Helvetica")
+			.font("Noto")
 			.fillColor(rgbStr(C_DGRAY))
 			.text("Guindy Chennai, Velachery", MARGIN, y);
 		doc
 			.fontSize(7)
-			.font("Helvetica")
+			.font("Noto")
 			.fillColor(rgbStr(C_GRAY))
 			.text("Bill in supply", MARGIN, y, { width: CONTENT_W, align: "right" });
 		y += 11;
@@ -248,7 +258,7 @@ export async function generateInvoicePdf(
 		y += 8;
 
 		// ── UHID / ENCOUNTER ────────────────────────────────────────────────
-		doc.fontSize(9).font("Helvetica-Bold").fillColor("black");
+		doc.fontSize(9).font("Noto-Bold").fillColor("black");
 		doc.text(`UHID: ${bill.uhid}`, MARGIN, y, { continued: false });
 		doc.text(`Encounter No: ${bill.encounterNo}`, MARGIN + 180, y);
 		y += 14;
@@ -265,9 +275,9 @@ export async function generateInvoicePdf(
 		const rightX = MARGIN + leftW + 10;
 		const infoY = y;
 
-		doc.fontSize(10).font("Helvetica-Bold").text("Bill To", MARGIN, y);
+		doc.fontSize(10).font("Noto-Bold").text("Bill To", MARGIN, y);
 		y += 14;
-		doc.fontSize(9).font("Helvetica").text(bill.patientName, MARGIN, y);
+		doc.fontSize(9).font("Noto").text(bill.patientName, MARGIN, y);
 		y += 12;
 		doc
 			.fontSize(8)
@@ -287,10 +297,10 @@ export async function generateInvoicePdf(
 		for (const [label, value] of details) {
 			doc
 				.fontSize(8)
-				.font("Helvetica-Bold")
+				.font("Noto-Bold")
 				.fillColor("black")
 				.text(label, rightX, detailY, { width: 85 });
-			doc.font("Helvetica").text(value, rightX + 85, detailY, { width: 150 });
+			doc.font("Noto").text(value, rightX + 85, detailY, { width: 150 });
 			detailY += 13;
 		}
 
@@ -322,12 +332,12 @@ export async function generateInvoicePdf(
 				.stroke();
 			doc
 				.fontSize(9)
-				.font("Helvetica-Bold")
+				.font("Noto-Bold")
 				.fillColor(rgbStr(C_PRIMARY))
 				.text(category.toUpperCase(), MARGIN + 8, y + 5);
 			doc
 				.fontSize(7)
-				.font("Helvetica")
+				.font("Noto")
 				.fillColor(rgbStr(C_GRAY))
 				.text(`${catItems.length} items`, MARGIN, y + 6, {
 					width: CONTENT_W - 8,
@@ -349,7 +359,7 @@ export async function generateInvoicePdf(
 					y = MARGIN;
 					doc
 						.fontSize(9)
-						.font("Helvetica-Bold")
+						.font("Noto-Bold")
 						.fillColor(rgbStr(C_PRIMARY))
 						.text(`${category.toUpperCase()} (continued)`, MARGIN, y);
 					y += 14;
@@ -377,7 +387,7 @@ export async function generateInvoicePdf(
 				.stroke();
 			doc
 				.fontSize(8.5)
-				.font("Helvetica-Bold")
+				.font("Noto-Bold")
 				.fillColor("black")
 				.text(`${category} Total`, MARGIN + 8, y + 4);
 			doc.text(fmt(catTotal), COL_X.amount + 4, y + 4, {
@@ -393,7 +403,7 @@ export async function generateInvoicePdf(
 		doc.rect(MARGIN, y, CONTENT_W, 24).fill(rgbStr(C_PRIMARY));
 		doc
 			.fontSize(11)
-			.font("Helvetica-Bold")
+			.font("Noto-Bold")
 			.fillColor("white")
 			.text(
 				`Grand Total: Rs. ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 1 }).format(bill.totalNetAmount)}`,
@@ -405,7 +415,7 @@ export async function generateInvoicePdf(
 		// Amount in words
 		doc
 			.fontSize(9)
-			.font("Helvetica-Bold")
+			.font("Noto-Bold")
 			.fillColor("black")
 			.text(
 				`Amount in Words: ${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2 }).format(bill.totalNetAmount)} rupees only.`,
@@ -427,7 +437,7 @@ export async function generateInvoicePdf(
 			.stroke();
 		doc
 			.fontSize(10)
-			.font("Helvetica-Bold")
+			.font("Noto-Bold")
 			.fillColor("black")
 			.text("Amount Due", MARGIN + 8, y + 6);
 		doc.text(
@@ -442,7 +452,7 @@ export async function generateInvoicePdf(
 		ensureSpace(70);
 		doc
 			.fontSize(11)
-			.font("Helvetica-Bold")
+			.font("Noto-Bold")
 			.fillColor("black")
 			.text("Thank You", MARGIN, y, { width: CONTENT_W, align: "center" });
 		y += 16;
@@ -453,7 +463,7 @@ export async function generateInvoicePdf(
 		y += 14;
 		doc
 			.fontSize(7)
-			.font("Helvetica")
+			.font("Noto")
 			.fillColor(rgbStr(C_GRAY))
 			.text("ELDERCARE BY GERIATRICIANS", MARGIN, y, {
 				width: CONTENT_W,
@@ -480,17 +490,19 @@ export async function generateInvoicePdf(
 
 		// ── PAGE NUMBERS ─────────────────────────────────────────────────────
 		const range = doc.bufferedPageRange();
+		// Write page numbers on each page without triggering auto-pagination
 		for (let i = 0; i < range.count; i++) {
 			doc.switchToPage(range.start + i);
-			doc
-				.fontSize(7)
-				.font("Helvetica")
-				.fillColor(rgbStr(C_GRAY))
-				.text(`Page ${i + 1} of ${range.count}`, MARGIN, PAGE_H - 30, {
-					width: CONTENT_W,
-					align: "center",
-					lineBreak: false,
-				});
+			// Save graphics state, position cursor, write text manually
+			doc.save();
+			doc.fontSize(7).font("Noto").fillColor(rgbStr(C_GRAY));
+			const label = `Page ${i + 1} of ${range.count}`;
+			const labelW = doc.widthOfString(label);
+			doc.text(label, MARGIN + (CONTENT_W - labelW) / 2, PAGE_H - 30, {
+				lineBreak: false,
+				height: 10,
+			});
+			doc.restore();
 		}
 
 		doc.end();

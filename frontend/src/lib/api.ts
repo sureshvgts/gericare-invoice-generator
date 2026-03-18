@@ -1,6 +1,6 @@
 import type { BillListResponse, ImportResponse } from "./types";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api`;
 
 export const api = {
 	async getBills(limit = 50, offset = 0): Promise<BillListResponse> {
